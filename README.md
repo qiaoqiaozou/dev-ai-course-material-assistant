@@ -1,27 +1,31 @@
-# Project name
+# AI Course Material Assistant
 
-Starter template for the **Development of AI Applications** course final group project.
+A RAG-based question-answering application that helps students find and understand information from the course website.
 
 ## Team members
 
-- Member 1 Name (email@example.com)
-- Member 2 Name (email@example.com)
-- Member 3 Name (email@example.com)
+- Qiaoqiao Zou (qiaoqiao.zou@student.hamk.fi)
+- Xiaomeng Du (xiaomeng23000@student.hamk.fi)
+- Neupane Nitish Raj (email@example.com)
 
 ## Problem
 
 ### Intended users
-Who are the primary target users of this application?
+Students
 
 ### Problem statement
-What specific problem does this application solve for those users?
+The course information is distributed across multiple webpages and chapters. Students may need to search through several pages to find a specific requirement, deadline, definition, or explanation. This takes time and can lead to misunderstandings when relevant information appears on different pages.
 
 ### Why AI is appropriate
-Why does this problem require AI / LLM capabilities rather than traditional deterministic software?
+When a student asks a complex question, the system can integrate information from multiple sources, and the language model can then clearly explain the retrieved information. RAG (Retrieval-Augmented Generation) technology enables the application to answer questions using selected course materials rather than relying solely on the model's internal knowledge, resulting in more accurate answers.
+
+AI does not rely solely on hard-coded rules written by programmers; instead, it understands natural language and generates responses. While it is difficult for traditional programs to write rules covering every possible way of expression, language models can comprehend the underlying semantics.
 
 ## Solution
 
-Briefly describe your application, its primary value proposition, and how it addresses the problem statement above.
+The application provides a Gradio interface where students can ask questions about a course.
+The system retrieves relevant passages from selected course webpages. It sends the question and retrieved passages to a local model through Ollama, validates the model response.
+If the course materials do not contain enough information, the application will state that it could not find a supported answer.
 
 ## Main user workflow
 
@@ -49,14 +53,14 @@ Ollama (Local LLM Server)
 
 ## Model
 
-- **Model used:** e.g., `llama3.2` (or specified local Ollama model)
-- **Selection rationale:** Why was this specific model chosen for your project (e.g., lightweight, performance, context size)?
+- **Model used:** `llama3.2` 
+- **Selection rationale:** We hope that selected model is supported by the provided starter setup, can run locally in our teamembers' laptops, and is suitable for creating the initial prototype. The final model choice may change after testing response quality and hardware requirements.
 
 ## Additional AI capability
 
 Select at least one additional capability to implement for your final project:
 
-- [ ] RAG (Retrieval-Augmented Generation)
+- [x] RAG (Retrieval-Augmented Generation)
 - [ ] Tools / External API integration
 - [ ] Model Context Protocol (MCP)
 - [ ] Agentic workflow (Model-selected actions based on observations)
@@ -65,7 +69,7 @@ Select at least one additional capability to implement for your final project:
 - [ ] Other: ______________________
 
 ### Capability justification
-Explain why the selected capability is useful and necessary for your application's user problem.
+RAG is necessary because the application must answer questions using the current course materials rather than relying only on the model's internal knowledge. Without incorporating RAG, the answers provided might be overly broad or lack accuracy.
 
 ## Setup
 
@@ -127,14 +131,23 @@ pytest
 
 ## Evaluation
 
-Describe your evaluation methodology and summarize key results. Starter test cases can be found in [`evaluation/test_cases.json`](evaluation/test_cases.json).
+The evaluation will consider relatived question, out-of-scope questions, and empty or invalid input.
+
+Starter test cases can be found in [`evaluation/test_cases.json`](evaluation/test_cases.json).
 
 Refer to [`evaluation/README.md`](evaluation/README.md) for guidelines on defining success, edge cases, and failure scenarios.
 
 ## Known limitations
 
-- Highlight known system limitations, unhandled edge cases, or boundaries of current capabilities.
+- The first version will support only selected public pages from the Development of AI Applications course(our course).
+
+- The application will not access course content requiring authentication.
+
+- The initial version may not process information contained only in PDF slides, images, diagrams, or videos.
+
+- Answer quality will depend on retrieval quality and the selected local model
 
 ## Future improvements
 
-- List planned feature enhancements, architectural refactorings, or future capabilities.
+- Supports loading more complex web pages.
+- supporting PDF slides and other document formats.
