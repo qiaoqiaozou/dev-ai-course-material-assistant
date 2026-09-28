@@ -6,7 +6,7 @@ A RAG-based question-answering application that helps students find and understa
 
 - Qiaoqiao Zou (qiaoqiao.zou@student.hamk.fi)
 - Xiaomeng Du (xiaomeng23000@student.hamk.fi)
-- Neupane Nitish Raj (email@example.com)
+- Neupane Nitish Raj (nitishraj.neupane@student.hamk.fi)
 
 ## Problem
 
