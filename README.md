@@ -11,7 +11,7 @@ A RAG-based question-answering application that helps students find and understa
 ## Problem
 
 ### Intended users
-Students
+Students learning online
 
 ### Problem statement
 The course information is distributed across multiple webpages and chapters. Students may need to search through several pages to find a specific requirement, deadline, definition, or explanation. This takes time and can lead to misunderstandings when relevant information appears on different pages.
