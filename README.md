@@ -54,7 +54,7 @@ Ollama (Local LLM Server)
 ## Model
 
 - **Model used:** `llama3.2` 
-- **Selection rationale:** We hope that selected model is supported by the provided starter setup, can run locally in our teamembers' laptops, and is suitable for creating the initial prototype. The final model choice may change after testing response quality and hardware requirements.
+- **Selection rationale:**  Llama 3.2 is intended for commercial and research use in multiple languages. Instruction tuned text only models are intended for assistant-like chat and agentic applications like knowledge retrieval and summarization, mobile AI powered writing assistants and query and prompt rewriting. Pretrained models can be adapted for a variety of additional natural language generation tasks. Similarly, quantized models can be adapted for a variety of on-device use-cases with limited compute resources. We hope that selected model is supported by the provided starter setup, can run locally in our teamembers' laptops, and is suitable for creating the initial prototype. The final model choice may change after testing response quality and hardware requirements.
 
 ## Additional AI capability
 
