@@ -2,6 +2,14 @@ from typing import Optional
 import ollama
 from src.config import config
 
+SYSTEM_MESSAGE = (
+    "You are an AI course material assistant for students. "
+    "Answer questions clearly and concisely. "
+    "If you are unsure about an official course rule, deadline, "
+    "or requirement, tell the user to check the official course "
+    "website or ask the teacher."
+)
+
 
 class ModelClientError(Exception):
     """Base exception for model client failures."""
@@ -35,7 +43,9 @@ class OllamaModelClient:
         try:
             response = self._client.chat(
                 model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": SYSTEM_MESSAGE},
+                    {"role": "user", "content": prompt}],
             )
             
             # Standardize extraction from dict or chat response object

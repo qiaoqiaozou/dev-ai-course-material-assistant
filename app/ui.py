@@ -9,21 +9,24 @@ def build_ui() -> gr.Blocks:
     Architectural Principle: The UI communicates strictly with `generate_response()`
     in the AI service layer and never directly with Ollama or the model client.
     """
-    with gr.Blocks(title="AI Application Starter") as demo:
+    with gr.Blocks(title="AI Course Material Assistant") as demo:
         gr.Markdown(
             """
-            # AI Application Starter
+            # AI Course Material Assistant
             
-            Welcome to the AI Application Starter repository.
-            Type a prompt below to interact with your local AI service.
+            Ask a question about the Development of AI Applications course.
+
+            This assistant helps students understand course information, concepts, 
+            and project requirements. Always verify important details using the official 
+            course materials and instructor announcements.
             """
         )
 
         with gr.Row():
             user_input = gr.Textbox(
                 lines=3,
-                placeholder="Type your message here...",
-                label="User Prompt",
+                placeholder="Ask a question about the course...",
+                label="Course Question",
             )
 
         submit_btn = gr.Button("Send", variant="primary")
@@ -31,7 +34,7 @@ def build_ui() -> gr.Blocks:
         with gr.Row():
             output_box = gr.Textbox(
                 lines=8,
-                label="AI Response",
+                label="Assistant Response",
                 interactive=False,
             )
 
