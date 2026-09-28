@@ -1,11 +1,12 @@
 from typing import Optional
+from pydantic import ValidationError
 from src.models.model_client import (
     OllamaModelClient,
     ModelClientError,
     OllamaConnectionError,
     ModelNotFoundError,
 )
-from src.schemas.responses import UserRequest, AIResponse
+from src.schemas.responses import UserRequest, AIResponse, CourseResponse 
 
 
 class AIService:
@@ -43,13 +44,24 @@ class AIService:
 
             # 3. Call model client
             client = self._get_client()
-            response_text = client.generate(request.message)
-
+            response_text = client.generate(
+                request.message,
+                response_format=CourseResponse.model_json_schema(),
+            )
+            reply = CourseResponse.model_validate_json(response_text)
             return AIResponse(
-                content=response_text,
+                content=reply.answer,
                 success=True,
             )
-
+        except ValidationError as err:
+            return AIResponse(
+                content=(
+                    "[Error] The AI model returned an invalid response format.\n\n"
+                    "Please try again."
+                ),
+               success=False,
+               error_message=str(err),
+            )
         except OllamaConnectionError as err:
             return AIResponse(
                 content=(
