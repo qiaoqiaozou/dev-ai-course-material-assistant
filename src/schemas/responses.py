@@ -33,8 +33,25 @@ class CourseResponse(BaseModel):
 
 
 class AIResponse(BaseModel):
-    """Minimal schema for structured response output from the AI service layer."""
+    """Structured response output from the AI service layer."""
 
-    content: str = Field(..., description="The generated response text or user-friendly error message.")
-    success: bool = Field(True, description="Flag indicating if the operation succeeded.")
-    error_message: str | None = Field(None, description="Detailed error description if success is False.")
+    content: str = Field(
+        ...,
+        description="The generated response text or user-friendly error message.",
+    )
+    success: bool = Field(
+        True,
+        description="Flag indicating if the operation succeeded.",
+    )
+    error_message: str | None = Field(
+        None,
+        description="Detailed error description if success is False.",
+    )
+    category: Literal["course", "project", "other"] | None = Field(
+        None,
+        description="The category of the student's question.",
+    )
+    needs_human: bool | None = Field(
+        None,
+        description="Whether the question should be handled by a human.",
+    )
