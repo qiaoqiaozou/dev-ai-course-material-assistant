@@ -5,18 +5,6 @@ import ollama
 from src.config import config
 
 
-SYSTEM_MESSAGE = (
-    "You are an AI course material assistant for students. "
-    "Answer questions clearly and concisely. "
-    "If you are unsure about an official course rule, deadline, "
-    "or requirement, tell the user to check the official course "
-    "website or ask the teacher. "
-    "Return the response strictly according to the provided JSON schema. "
-    "The 'answer' field must contain only the natural-language answer. "
-    "Do not add JSON syntax such as extra braces to the answer text "
-    "unless those characters are genuinely part of the answer."
-)
-
 
 class ModelClientError(Exception):
     """Base exception for model client failures."""
@@ -48,41 +36,9 @@ class OllamaModelClient:
         self.model_name = model_name or config.model_name
         self._client = ollama.Client(host=self.base_url)
 
-    def build_messages(
-        self,
-        prompt: str,
-        history: Optional[list[dict]] = None,
-    ) -> list[dict]:
-        """
-        Builds the message list for Ollama, including system instructions,
-        conversation history, and the current user message.
-        """
+   
 
-        messages = [
-            {
-                "role": "system",
-                "content": SYSTEM_MESSAGE,
-            }
-        ]
-
-        if history:
-            messages.extend(history)
-
-        messages.append(
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        )
-
-        return messages
-
-    def generate(
-        self,
-        prompt: str,
-        response_format: Optional[dict] = None,
-        history: Optional[list[dict]] = None,
-    ) -> str:
+    def generate(self, messages, response_format) -> str:
         """
         Sends a user prompt to local Ollama model and returns generated
         response text.
@@ -93,10 +49,7 @@ class OllamaModelClient:
         try:
             response = self._client.chat(
                 model=self.model_name,
-                messages=self.build_messages(
-                    prompt,
-                    history,
-                ),
+                messages=messages,
                 format=response_format,
                 options={
                     "temperature": 0,

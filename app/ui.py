@@ -2,49 +2,48 @@ import gradio as gr
 from src.services.ai_service import generate_response
 
 
-def chat_with_history(
-    user_message: str,
-    model_history: list[dict],
-):
-    """
-    Sends the user's message together with previous conversation history
-    to the AI service, then updates the model history and chatbot display.
-    """
+def content_to_text(content):
+    if isinstance(content, str):
+        return content
 
-    if not user_message or not user_message.strip():
-        return "", model_history, []
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
 
-    user_message = user_message.strip()
+    return ""
 
-    # Send the previous conversation history to the AI service.
+
+def history_for_service(history):
+    converted = []
+
+    for message in history:
+        role = message.get("role")
+        text = content_to_text(message.get("content"))
+
+        if role in {"user", "assistant"} and text:
+            converted.append({"role": role, "content": text})
+
+    return converted
+
+
+def chat_reply(message, history):
     response = generate_response(
-        user_message,
-        history=model_history,
+        message,
+        history_for_service(history),
     )
 
+    if not response.success:
+        return response.content, {"status": "error"}
 
-    # Update the history used by the model.
-    new_history = model_history + [
-        {
-            "role": "user",
-            "content": user_message,
-        },
-        {
-            "role": "assistant",
-            "content": response,
-        },
-    ]
+    return response.content, {
+        "category": response.category,
+        "needs_human": response.needs_human,
+    }
 
-    # Create a separate copy for the Chatbot display.
-    chatbot_display = [
-        {
-            "role": message["role"],
-            "content": message["content"],
-        }
-        for message in new_history
-    ]
 
-    return "", new_history, chatbot_display
 
 
 def build_ui() -> gr.Blocks:
@@ -69,51 +68,11 @@ def build_ui() -> gr.Blocks:
             """
         )
 
-        chatbot = gr.Chatbot(
-            label="Conversation",
-            value=[],
-        )
-
-        # Stores only the conversation history sent to the model.
-        model_history = gr.State([])
-
-        with gr.Row():
-
-            user_input = gr.Textbox(
-                lines=3,
-                placeholder="Ask a question about the course...",
-                label="Course Question",
-            )
-
-        submit_btn = gr.Button(
-            "Send",
-            variant="primary",
-        )
-
-        submit_btn.click(
-            fn=chat_with_history,
-            inputs=[
-                user_input,
-                model_history,
-            ],
-            outputs=[
-                user_input,
-                model_history,
-                chatbot,
-            ],
-        )
-
-        user_input.submit(
-            fn=chat_with_history,
-            inputs=[
-                user_input,
-                model_history,
-            ],
-            outputs=[
-                user_input,
-                model_history,
-                chatbot,
-            ],
+        metadata = gr.JSON(label="Validated response")
+        
+        gr.ChatInterface(
+            fn=chat_reply,
+            additional_outputs=[metadata],
         )
 
     return demo
