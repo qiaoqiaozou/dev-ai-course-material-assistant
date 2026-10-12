@@ -1,12 +1,40 @@
 from typing import Optional
+
+from pydantic import ValidationError
+
 from src.models.model_client import (
     OllamaModelClient,
     ModelClientError,
     OllamaConnectionError,
     ModelNotFoundError,
 )
-from src.schemas.responses import UserRequest, AIResponse
+from src.schemas.responses import UserRequest, AIResponse, CourseResponse
 
+SYSTEM_MESSAGE = """You are a university support assistant used for teaching.
+Use the current question and recent conversation history as context.
+Answer in a few sentences using at most 600 characters.
+Choose category course, project, or other.
+Set needs_human to true when the question requires an official decision,
+personal account access, or information missing from the supplied context.
+Treat university policy details as requiring verification from official sources.
+Return only a JSON object with answer, category, and needs_human.
+"""
+
+
+def build_messages(question: str, history=None):
+    history = history or []
+
+    selected_history = [
+        {"role": item["role"], "content": item["content"]}
+        for item in history[-4:]
+        if item.get("role") in {"user", "assistant"} and item.get("content")
+    ]
+
+    return [
+        {"role": "system", "content": SYSTEM_MESSAGE},
+        *selected_history,
+        {"role": "user", "content": question},
+    ]
 
 class AIService:
     """
@@ -15,21 +43,28 @@ class AIService:
     """
 
     def __init__(self, model_client: Optional[OllamaModelClient] = None):
-        # Allow injecting custom/mock model_client for simple testing
         self.model_client = model_client
 
     def _get_client(self) -> OllamaModelClient:
         """Returns active model client, initializing default client if none provided."""
+
         if self.model_client is None:
             self.model_client = OllamaModelClient()
+
         return self.model_client
 
-    def process_message(self, user_message: str) -> AIResponse:
+    def process_message(
+        self,
+        user_message: str,
+        history = None,
+    ) -> AIResponse:
         """
         Processes a raw user message string and returns a structured AIResponse.
-        Catches technical failures and converts them to friendly user-facing messages.
+
+        Catches technical failures and converts them to friendly user-facing
+        messages.
         """
-        # 1. Validate empty input
+
         if not user_message or not user_message.strip():
             return AIResponse(
                 content="Please enter a message before sending.",
@@ -38,23 +73,42 @@ class AIService:
             )
 
         try:
-            # 2. Schema validation
-            request = UserRequest(message=user_message.strip())
+            request = UserRequest(
+                message=user_message.strip()
+            )
 
-            # 3. Call model client
-            client = self._get_client()
-            response_text = client.generate(request.message)
+            messages = build_messages(request.message, history)
+
+            response_text = self._get_client().generate(
+                messages,
+                CourseResponse.model_json_schema(),
+            )
+
+            reply = CourseResponse.model_validate_json(response_text or "")
 
             return AIResponse(
-                content=response_text,
+                content=reply.answer,
                 success=True,
+                category=reply.category,
+                needs_human=reply.needs_human,
+            )
+
+        except ValidationError as err:
+            return AIResponse(
+                content=(
+                    "[Error] The AI model returned an invalid response format.\n\n"
+                    "Please try again."
+                ),
+                success=False,
+                error_message=str(err),
             )
 
         except OllamaConnectionError as err:
             return AIResponse(
                 content=(
                     "[Error] Could not connect to Ollama.\n\n"
-                    "Please verify that Ollama is installed and running locally on your machine."
+                    "Please verify that Ollama is installed and running locally "
+                    "on your machine."
                 ),
                 success=False,
                 error_message=str(err),
@@ -63,8 +117,9 @@ class AIService:
         except ModelNotFoundError as err:
             return AIResponse(
                 content=(
-                    f"[Error] The configured AI model is unavailable in Ollama.\n\n"
-                    f"Please verify your MODEL_NAME setting or run 'ollama run <model_name>'."
+                    "[Error] The configured AI model is unavailable in Ollama.\n\n"
+                    "Please verify your MODEL_NAME setting or run "
+                    "'ollama run <model_name>'."
                 ),
                 success=False,
                 error_message=str(err),
@@ -72,7 +127,10 @@ class AIService:
 
         except ModelClientError as err:
             return AIResponse(
-                content="[Error] An unexpected communication error occurred with the AI model.",
+                content=(
+                    "[Error] An unexpected communication error occurred "
+                    "with the AI model."
+                ),
                 success=False,
                 error_message=str(err),
             )
@@ -85,13 +143,35 @@ class AIService:
             )
 
 
-def generate_response(user_message: str, service: Optional[AIService] = None) -> str:
+def generate_response(
+    user_message: str,
+    history = None,
+    service: Optional[AIService] = None,
+) -> AIResponse:
     """
     Main reusable service entry point used by the UI layer.
+
+    Accepts user input message and conversation history, passes it
+    to the AI service, and returns the generated text response.
+    """
+
+    active_service = service or AIService()
+
+    return active_service.process_message(user_message, history=history)
+
     
-    Accepts user input message, passes it to the AI service, and returns
-    the generated text response (or a friendly error message).
+
+def generate_response(
+    user_message: str,
+    history=None,
+    service: Optional[AIService] = None,
+) -> AIResponse:
+    """
+    Main reusable service entry point used by the UI layer.
     """
     active_service = service or AIService()
-    response = active_service.process_message(user_message)
-    return response.content
+
+    return active_service.process_message(
+        user_message,
+        history=history,
+    )

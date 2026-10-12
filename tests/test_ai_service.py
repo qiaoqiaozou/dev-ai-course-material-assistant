@@ -38,13 +38,20 @@ def test_empty_input_validation():
 def test_successful_response_generation():
     """Verify that valid input invokes model client and returns the generated string response."""
     mock_client = MagicMock()
-    mock_client.generate.return_value = "Hello! I am an AI assistant."
+    mock_client.generate.return_value = (
+        '{"answer": "Hello! I am an AI assistant.", '
+        '"category": "other", '
+        '"needs_human": false}'
+    )
     service = AIService(model_client=mock_client)
 
-    result_text = generate_response("Hello, AI", service=service)
+    result = generate_response("Hello, AI", service=service)
 
-    assert result_text == "Hello! I am an AI assistant."
-    mock_client.generate.assert_called_once_with("Hello, AI")
+    assert result.content == "Hello! I am an AI assistant."
+    assert result.success is True
+    assert result.category == "other"
+    assert result.needs_human is False
+   
 
 
 def test_ollama_connection_error_handling():
