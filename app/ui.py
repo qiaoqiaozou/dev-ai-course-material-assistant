@@ -1,5 +1,9 @@
 import gradio as gr
-from src.services.ai_service import generate_response
+from src.services.ai_service import (
+    generate_response,
+    INSTALLED_MODELS,
+    DEFAULT_MODEL_ID,
+)
 
 
 def content_to_text(content):
@@ -29,10 +33,11 @@ def history_for_service(history):
     return converted
 
 
-def chat_reply(message, history):
+def chat_reply(message, history, model_id):
     response = generate_response(
         message,
         history_for_service(history),
+        model_id = model_id,
     )
 
     if not response.success:
@@ -68,10 +73,17 @@ def build_ui() -> gr.Blocks:
             """
         )
 
+        model_selector = gr.Dropdown(
+            choices=INSTALLED_MODELS,
+            value=DEFAULT_MODEL_ID,
+            label="Model",
+        )
+
         metadata = gr.JSON(label="Validated response")
         
         gr.ChatInterface(
             fn=chat_reply,
+            additional_inputs=[model_selector],
             additional_outputs=[metadata],
         )
 

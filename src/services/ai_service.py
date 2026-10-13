@@ -9,6 +9,9 @@ from src.models.model_client import (
     ModelNotFoundError,
 )
 from src.schemas.responses import UserRequest, AIResponse, CourseResponse
+from time import perf_counter
+from src.config import config
+import ollama
 
 SYSTEM_MESSAGE = """You are a university support assistant used for teaching.
 Use the current question and recent conversation history as context.
@@ -19,6 +22,16 @@ personal account access, or information missing from the supplied context.
 Treat university policy details as requiring verification from official sources.
 Return only a JSON object with answer, category, and needs_human.
 """
+
+
+ollama_client = ollama.Client(host=config.ollama_base_url)
+
+installed = ollama_client.list().models
+INSTALLED_MODELS = [item.model for item in installed]
+if not INSTALLED_MODELS:
+    raise RuntimeError("No Ollama models are installed.")
+
+DEFAULT_MODEL_ID = INSTALLED_MODELS[0]
 
 
 def build_messages(question: str, history=None):
@@ -57,6 +70,7 @@ class AIService:
         self,
         user_message: str,
         history = None,
+        model_id=None,
     ) -> AIResponse:
         """
         Processes a raw user message string and returns a structured AIResponse.
@@ -77,9 +91,14 @@ class AIService:
                 message=user_message.strip()
             )
 
-            messages = build_messages(request.message, history)
+            if model_id is None:
+                client = self._get_client()
+            else:
+                client = OllamaModelClient(model_name=model_id)
 
-            response_text = self._get_client().generate(
+            messages = build_messages(request.message, history=history)
+
+            response_text = client.generate(
                 messages,
                 CourseResponse.model_json_schema(),
             )
@@ -146,6 +165,7 @@ class AIService:
 def generate_response(
     user_message: str,
     history = None,
+    model_id = None,
     service: Optional[AIService] = None,
 ) -> AIResponse:
     """
@@ -157,21 +177,5 @@ def generate_response(
 
     active_service = service or AIService()
 
-    return active_service.process_message(user_message, history=history)
+    return active_service.process_message(user_message, history=history,model_id=model_id,)
 
-    
-
-def generate_response(
-    user_message: str,
-    history=None,
-    service: Optional[AIService] = None,
-) -> AIResponse:
-    """
-    Main reusable service entry point used by the UI layer.
-    """
-    active_service = service or AIService()
-
-    return active_service.process_message(
-        user_message,
-        history=history,
-    )
