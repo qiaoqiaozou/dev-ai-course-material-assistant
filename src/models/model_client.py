@@ -45,7 +45,6 @@ class OllamaModelClient:
 
         Raises ModelClientError subclass if connection or execution fails.
         """
-
         try:
             response = self._client.chat(
                 model=self.model_name,
