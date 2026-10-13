@@ -159,19 +159,3 @@ def generate_response(
 
     return active_service.process_message(user_message, history=history)
 
-    
-
-def generate_response(
-    user_message: str,
-    history=None,
-    service: Optional[AIService] = None,
-) -> AIResponse:
-    """
-    Main reusable service entry point used by the UI layer.
-    """
-    active_service = service or AIService()
-
-    return active_service.process_message(
-        user_message,
-        history=history,
-    )
