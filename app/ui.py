@@ -64,6 +64,9 @@ def chat_reply(message, history, model_id):
         "needs_human": response.needs_human,
         "evidence_status": response.evidence_status,
         "citations": response.citations,
+        "runtime": response.runtime,
+        "endpoint": response.endpoint,
+        "elapsed_s": response.elapsed_s,
     }
 
     return response.content, metadata,format_sources(response)

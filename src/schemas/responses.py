@@ -58,3 +58,6 @@ class AIResponse(BaseModel):
     evidence_status: Literal["supported", "insufficient"] | None = None
     citations: list[int] = Field(default_factory=list)
     sources: list[dict] = Field(default_factory=list)
+    runtime: str | None = None
+    endpoint: str | None = None
+    elapsed_s: float | None = None

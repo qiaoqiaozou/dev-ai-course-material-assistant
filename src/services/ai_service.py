@@ -107,6 +107,14 @@ class AIService:
                 error_message="User message was empty.",
             )
 
+        if model_id is not None and model_id not in INSTALLED_MODELS:
+            return AIResponse(
+                content=f"Model {model_id!r} is not installed.",
+                success=False,
+                model=model_id,
+            )
+
+        started = perf_counter()
         try:
             request = UserRequest(
                 message=user_message.strip()
@@ -156,6 +164,9 @@ class AIService:
                 evidence_status=reply.evidence_status,
                 citations=reply.citations,
                 sources=sources,
+                runtime="Ollama",
+                endpoint=config.ollama_base_url,
+                elapsed_s=round(perf_counter() - started, 2),
             )
 
 
