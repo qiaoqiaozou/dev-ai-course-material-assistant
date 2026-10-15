@@ -23,13 +23,11 @@ class CourseResponse(BaseModel):
         description="The answer to the student's question.",
     )
 
-    category: Literal["course", "project", "other"] = Field(
-        description="The category of the student's question."
-    )
+    category: Literal["course", "project", "other"] = Field(description="The category of the student's question.")
 
-    needs_human: bool = Field(
-        description="Whether the question should be handled by a human."
-    )
+    needs_human: bool = Field(description="Whether the question should be handled by a human.")
+    evidence_status: Literal["supported", "insufficient"]
+    citations: list[int] = Field(default_factory=list, max_length=3)
 
 
 class AIResponse(BaseModel):
@@ -55,3 +53,8 @@ class AIResponse(BaseModel):
         None,
         description="Whether the question should be handled by a human.",
     )
+    
+    model: str | None = None
+    evidence_status: Literal["supported", "insufficient"] | None = None
+    citations: list[int] = Field(default_factory=list)
+    sources: list[dict] = Field(default_factory=list)

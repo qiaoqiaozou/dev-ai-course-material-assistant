@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import pytest
 
 from src.config import config
@@ -38,14 +38,31 @@ def test_empty_input_validation():
 def test_successful_response_generation():
     """Verify that valid input invokes model client and returns the generated string response."""
     mock_client = MagicMock()
+    mock_client.model_name = "test-model"
     mock_client.generate.return_value = (
         '{"answer": "Hello! I am an AI assistant.", '
         '"category": "other", '
-        '"needs_human": false}'
+        '"needs_human": false,'
+        '"evidence_status": "supported", '
+        '"citations": [1]}'
     )
+
+    evidence = [
+        {
+            "id": "test-chunk-1",
+            "text": "The workshop uses an energy dataset.",
+            "title": "Test course guide",
+            "url": "https://example.com/course",
+        }
+    ]
+
     service = AIService(model_client=mock_client)
 
-    result = generate_response("Hello, AI", service=service)
+    with patch(
+        "src.services.ai_service.retrieve",
+        return_value=evidence,
+    ):
+        result = generate_response("Hello, AI", service=service)
 
     assert result.content == "Hello! I am an AI assistant."
     assert result.success is True

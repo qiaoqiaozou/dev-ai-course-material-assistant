@@ -12,15 +12,25 @@ from src.schemas.responses import UserRequest, AIResponse, CourseResponse
 from time import perf_counter
 from src.config import config
 import ollama
+from src.capabilities.rag import retrieve
+
 
 SYSTEM_MESSAGE = """You are a university support assistant used for teaching.
-Use the current question and recent conversation history as context.
-Answer in a few sentences using at most 600 characters.
+Answer the user's question using only the supplied evidence.
+Do not invent facts that are missing from the evidence.
+
+If the evidence supports the answer:
+- set evidence_status to supported;
+- cite the relevant evidence numbers.
+
+If the evidence does not contain enough information:
+- say that the supplied documents do not contain enough information;
+- set evidence_status to insufficient;
+- return an empty citations list;
+- set needs_human to true.
+
 Choose category course, project, or other.
-Set needs_human to true when the question requires an official decision,
-personal account access, or information missing from the supplied context.
-Treat university policy details as requiring verification from official sources.
-Return only a JSON object with answer, category, and needs_human.
+Return only the structured response requested by the schema.
 """
 
 
@@ -34,7 +44,7 @@ if not INSTALLED_MODELS:
 DEFAULT_MODEL_ID = INSTALLED_MODELS[0]
 
 
-def build_messages(question: str, history=None):
+def build_grounded_messages(question: str, evidence, history=None):
     history = history or []
 
     selected_history = [
@@ -43,10 +53,21 @@ def build_messages(question: str, history=None):
         if item.get("role") in {"user", "assistant"} and item.get("content")
     ]
 
+    evidence_text = "\n\n".join(
+        f"[{number}] {item['text']}"
+        for number, item in enumerate(evidence, start=1)
+    )
+
     return [
         {"role": "system", "content": SYSTEM_MESSAGE},
         *selected_history,
-        {"role": "user", "content": question},
+        {"role": "user", 
+         "content": (
+                f"Question: {question}\n\n"
+                f"Evidence:\n{evidence_text}"
+            ),
+        },
+
     ]
 
 class AIService:
@@ -90,13 +111,18 @@ class AIService:
             request = UserRequest(
                 message=user_message.strip()
             )
+            evidence = retrieve(
+                request.message,
+                course="DEV-AI",
+                top_k=3,
+            )
 
             if model_id is None:
                 client = self._get_client()
             else:
                 client = OllamaModelClient(model_name=model_id)
 
-            messages = build_messages(request.message, history=history)
+            messages = build_grounded_messages(request.message, evidence, history=history)
 
             response_text = client.generate(
                 messages,
@@ -105,12 +131,33 @@ class AIService:
 
             reply = CourseResponse.model_validate_json(response_text or "")
 
+            if any(
+                number < 1 or number > len(evidence)
+                for number in reply.citations
+            ):
+
+                 return AIResponse(
+                    content="The model returned an invalid source reference.",
+                    success=False,
+                    error_message="Invalid source reference.",
+                )
+
+            sources = [
+                evidence[number - 1]
+                for number in reply.citations
+            ]
+
             return AIResponse(
                 content=reply.answer,
                 success=True,
                 category=reply.category,
                 needs_human=reply.needs_human,
+                model=client.model_name,
+                evidence_status=reply.evidence_status,
+                citations=reply.citations,
+                sources=sources,
             )
+
 
         except ValidationError as err:
             return AIResponse(
@@ -164,9 +211,10 @@ class AIService:
 
 def generate_response(
     user_message: str,
-    history = None,
-    model_id = None,
     service: Optional[AIService] = None,
+     *,
+    history=None,
+    model_id=None,
 ) -> AIResponse:
     """
     Main reusable service entry point used by the UI layer.

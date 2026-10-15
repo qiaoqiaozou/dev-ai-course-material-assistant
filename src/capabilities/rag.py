@@ -25,3 +25,92 @@ specific custom documents or static domain knowledge bases.
 """
 
 # Implement custom RAG pipeline below if selected for your project.
+
+import chromadb
+from sentence_transformers import SentenceTransformer
+
+from src.config import config
+from src.capabilities.web_documents import load_course_documents
+
+
+
+
+DOCUMENTS = load_course_documents("https://mazarbaloch.github.io/dev-ai-course/")
+
+
+def make_chunks(documents):
+    chunks = []
+
+    for document_number, document in enumerate(documents, start=1):
+        paragraphs = [
+            paragraph.strip()
+            for paragraph in document["text"].split("\n\n")
+            if paragraph.strip()
+        ]
+
+        for number, paragraph in enumerate(paragraphs, start=1):
+            chunks.append({
+                "id": f'{document["course"]}-doc{document_number}-c{number}',
+                "text": paragraph,
+                "metadata": {
+                    "title": document["title"],
+                    "course": document["course"],
+                    "url": document["url"],
+                },
+            })
+
+    return chunks
+
+
+embedding_model = SentenceTransformer(config.embedding_model)
+chunks = make_chunks(DOCUMENTS)
+
+vectors = embedding_model.encode(
+    [chunk["text"] for chunk in chunks],
+    normalize_embeddings=True,
+).tolist()
+
+client = chromadb.Client()
+collection = client.get_or_create_collection(
+    name="course_web_documents",
+    metadata={"hnsw:space": "cosine"},
+)
+
+collection.upsert(
+    ids=[chunk["id"] for chunk in chunks],
+    embeddings=vectors,
+    documents=[chunk["text"] for chunk in chunks],
+    metadatas=[chunk["metadata"] for chunk in chunks],
+)
+
+
+def retrieve(question: str, course="DEV-AI", top_k=3):
+    query_vector = embedding_model.encode(
+        [question],
+        normalize_embeddings=True,
+    ).tolist()[0]
+
+    result = collection.query(
+        query_embeddings=[query_vector],
+        n_results=min(top_k, collection.count()),
+        where={"course": course},
+        include=["documents", "metadatas", "distances"],
+    )
+
+    evidence = []
+
+    for chunk_id, text, metadata, distance in zip(
+        result["ids"][0],
+        result["documents"][0],
+        result["metadatas"][0],
+        result["distances"][0],
+    ):
+        evidence.append({
+            "id": chunk_id,
+            "text": text,
+            "title": metadata["title"],
+            "url": metadata["url"],
+            "distance": round(float(distance), 3),
+        })
+
+    return evidence
