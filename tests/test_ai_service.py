@@ -168,3 +168,39 @@ def test_insufficient_response_rejects_citations():
     assert result.success is False
     assert result.error_message == "Insufficient answer includes citations."
     assert result.sources == []
+
+def test_out_of_range_citation_is_rejected():
+    """Verify that a citation outside the supplied evidence is rejected."""
+    mock_client = MagicMock()
+    mock_client.model_name = "test-model"
+    mock_client.generate.return_value = (
+        '{"answer": "The workshop uses an energy dataset.", '
+        '"category": "course", '
+        '"needs_human": false, '
+        '"evidence_status": "supported", '
+        '"citations": [2]}'
+    )
+
+    evidence = [
+        {
+            "id": "test-chunk-1",
+            "text": "The workshop uses an energy dataset.",
+            "title": "Test course guide",
+            "url": "https://example.com/course",
+        }
+    ]
+
+    service = AIService(model_client=mock_client)
+
+    with patch(
+        "src.services.ai_service.retrieve",
+        return_value=evidence,
+    ):
+        result = generate_response(
+            "What dataset does the workshop use?",
+            service=service,
+        )
+
+    assert result.success is False
+    assert result.error_message == "Invalid source reference."
+    assert result.sources == []

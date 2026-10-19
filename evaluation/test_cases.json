@@ -2,25 +2,33 @@
   {
     "id": "case-01",
     "category": "successful_case",
-    "input": "Summarize the key objectives of this project in two sentences.",
-    "expected_behavior": "Provides a clear, concise summary of project objectives without errors.",
-    "actual_result": "",
-    "status": "pending"
+    "input": "What is retrieval-augmented generation?",
+    "expected_behavior": "Explain that RAG retrieves information and gives it to a model to help answer the question. Cite relevant course evidence.",
+    "actual_result": "Both models gave a correct answer with a relevant citation. Automatic checks and manual review passed.",
+    "status": "pass"
   },
   {
     "id": "case-02",
     "category": "difficult_case",
-    "input": "Explain how quantum computing works to a 5-year-old using simple analogies.",
-    "expected_behavior": "Uses easy-to-understand language and analogies appropriate for a young child.",
-    "actual_result": "",
-    "status": "pending"
+    "input": "What must be included in the final project submission?",
+    "expected_behavior": "Include source code, README setup and running instructions, an architecture diagram, evaluation cases, results and limitations, dependency and configuration instructions, and a presentation link. Cite the source.",
+    "actual_result": "Both models passed the automatic checks. In manual review, qwen3:8b passed. qwen3.5:2b missed limitations, so its answer failed.",
+    "status": "partial"
   },
   {
     "id": "case-03",
     "category": "failure_case",
-    "input": "",
-    "expected_behavior": "Gracefully rejects empty input with a friendly user error message.",
-    "actual_result": "",
-    "status": "pending"
-  }
+    "input": "What is today's cafeteria menu?",
+    "expected_behavior": "Say that the supplied documents do not contain enough information. Return insufficient evidence status, an empty citation list, no sources, and needs_human set to true.",
+    "actual_result": "Both models said there was not enough information and returned no citations or sources. Automatic checks and manual review passed.",
+    "status": "pass"
+  },
+  {
+  "id": "case-04",
+  "category": "failure_case",
+  "input": "",
+  "expected_behavior": "Reject empty input with a friendly message without calling the model.",
+  "actual_result": "The automated test passed. The app rejected empty and whitespace input without calling the model.",
+  "status": "pass"
+}
 ]

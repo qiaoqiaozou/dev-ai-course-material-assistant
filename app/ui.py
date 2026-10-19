@@ -4,7 +4,7 @@ from src.services.ai_service import (
     INSTALLED_MODELS,
     DEFAULT_MODEL_ID,
 )
-
+from src.services.evaluation_service import run_quick_evaluation
 
 def content_to_text(content):
     if isinstance(content, str):
@@ -108,6 +108,35 @@ def build_ui() -> gr.Blocks:
             fn=chat_reply,
             additional_inputs=[model_selector],
             additional_outputs=[metadata, sources],
+        )
+        gr.Markdown("## Quick developer evaluation")
+
+        gr.Markdown(
+            "Run three fixed cases with the selected model. "
+            "Automatic checks do not prove answer correctness. "
+            "Review relevance, source quality, correctness, and grounding."
+        )
+
+        run_eval = gr.Button("Run quick evaluation")
+
+        results_table = gr.Dataframe(
+            headers=[
+                "case",
+                "question",
+                "evidence status",
+                "automatic pass",
+                "answer",
+                "cited evidence",
+                "elapsed seconds",
+            ],
+            interactive=False,
+            label="Evaluation results",
+        )
+
+        run_eval.click(
+            run_quick_evaluation,
+            inputs=[model_selector],
+            outputs=[results_table],
         )
 
     return demo
