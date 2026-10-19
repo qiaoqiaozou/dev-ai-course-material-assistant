@@ -43,10 +43,6 @@ Choose the category based on the user's question:
 Exercises and teaching sample projects belong to course.
 Classify the topic independently of whether sufficient evidence was retrieved.
 
-Teaching sample projects belong to course, not project.
-Numbered course exercises belong to exercise, not project.
-Classify the topic independently of whether sufficient evidence was retrieved.
-
 Return only the structured response requested by the schema.
 """
 
