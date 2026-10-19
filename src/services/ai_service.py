@@ -17,11 +17,17 @@ from src.capabilities.rag import retrieve
 
 SYSTEM_MESSAGE = """You are a university support assistant used for teaching.
 Answer the user's question using only the supplied evidence.
+Give a complete, direct answer to the question.
+When asked which projects are listed, name all projects listed in the supplied evidence.
+Do not return only an introductory phrase.
 Do not invent facts that are missing from the evidence.
 
 If the evidence supports the answer:
 - set evidence_status to supported;
-- cite the relevant evidence numbers.
+- cite only the relevant evidence numbers shown in square brackets;
+- citation numbers identify supplied evidence passages, not items listed inside them;
+- if only evidence [1] is supplied, the only valid citation number is 1;
+- several facts or projects from the same passage share the same citation number.
 
 If the evidence does not contain enough information:
 - say that the supplied documents do not contain enough information;
@@ -29,7 +35,18 @@ If the evidence does not contain enough information:
 - return an empty citations list;
 - set needs_human to true.
 
-Choose category course, project, or other.
+Choose the category based on the user's question:
+- course: course concepts, chapters, exercises, teaching sample projects, schedule, software setup, and learning resources;
+- project: the student's final group project, including its requirements, implementation, submission, assessment, and presentation;
+- other: unrelated questions or questions whose topic cannot be determined.
+
+Exercises and teaching sample projects belong to course.
+Classify the topic independently of whether sufficient evidence was retrieved.
+
+Teaching sample projects belong to course, not project.
+Numbered course exercises belong to exercise, not project.
+Classify the topic independently of whether sufficient evidence was retrieved.
+
 Return only the structured response requested by the schema.
 """
 
@@ -64,7 +81,12 @@ def build_grounded_messages(question: str, evidence, history=None):
         {"role": "user", 
          "content": (
                 f"Question: {question}\n\n"
-                f"Evidence:\n{evidence_text}"
+                f"Evidence:\n{evidence_text}\n\n"
+                f"Allowed citation numbers: "
+                f"{list(range(1, len(evidence) + 1))}\n"
+                "Use only these numbers in citations. "
+                "Do not use the numbering of projects or items "
+                "inside an evidence passage."
             ),
         },
 
@@ -137,18 +159,39 @@ class AIService:
                 CourseResponse.model_json_schema(),
             )
 
+
             reply = CourseResponse.model_validate_json(response_text or "")
+
+            if reply.evidence_status == "supported" and not reply.citations:
+                return AIResponse(
+                    content=(
+                        "The model reported a supported answer "
+                        "without source references. Please try again."
+                    ),
+                    success=False,
+                    error_message="Supported answer has no citations.",
+                )
+
+            if reply.evidence_status == "insufficient" and reply.citations:
+                return AIResponse(
+                    content=(
+                        "The model reported insufficient evidence "
+                        "but included source references. Please try again."
+                    ),
+                    success=False,
+                    error_message="Insufficient answer includes citations.",
+                )
 
             if any(
                 number < 1 or number > len(evidence)
                 for number in reply.citations
             ):
-
-                 return AIResponse(
+                return AIResponse(
                     content="The model returned an invalid source reference.",
                     success=False,
                     error_message="Invalid source reference.",
                 )
+
 
             sources = [
                 evidence[number - 1]

@@ -25,6 +25,7 @@ specific custom documents or static domain knowledge bases.
 """
 
 # Implement custom RAG pipeline below if selected for your project.
+import re
 
 import chromadb
 from sentence_transformers import SentenceTransformer
@@ -40,6 +41,7 @@ DOCUMENTS = load_course_documents("https://mazarbaloch.github.io/dev-ai-course/"
 
 def make_chunks(documents):
     chunks = []
+    target_words = 120
 
     for document_number, document in enumerate(documents, start=1):
         paragraphs = [
@@ -48,10 +50,35 @@ def make_chunks(documents):
             if paragraph.strip()
         ]
 
-        for number, paragraph in enumerate(paragraphs, start=1):
+        grouped_paragraphs = []
+        current_paragraphs = []
+        current_words = 0
+
+        for paragraph in paragraphs:
+            paragraph_words = len(paragraph.split())
+
+            current_paragraphs.append(paragraph)
+            current_words += paragraph_words
+
+            if current_words >= target_words:
+                grouped_paragraphs.append(
+                    "\n\n".join(current_paragraphs)
+                )
+                current_paragraphs = []
+                current_words = 0
+
+        if current_paragraphs:
+            remaining_text = "\n\n".join(current_paragraphs)
+            if grouped_paragraphs and current_words < 40:
+                grouped_paragraphs[-1] += "\n\n" + remaining_text
+            else:
+                grouped_paragraphs.append(remaining_text)
+          
+
+        for number, text in enumerate(grouped_paragraphs, start=1):
             chunks.append({
                 "id": f'{document["course"]}-doc{document_number}-c{number}',
-                "text": paragraph,
+                "text": f'{document["title"]}\n\n{text}',
                 "metadata": {
                     "title": document["title"],
                     "course": document["course"],
@@ -85,15 +112,66 @@ collection.upsert(
 
 
 def retrieve(question: str, course="DEV-AI", top_k=3):
+    sample_projects_match = re.search(
+        r"\bsample\s+projects?\b",
+        question,
+        flags=re.IGNORECASE,
+    )
+
+    if sample_projects_match:
+        for document in DOCUMENTS:
+            if (
+                document["course"] == course
+                and document["url"].rstrip("/").endswith(
+                    "/docs/sample-projects"
+                )
+            ):
+                return [{
+                    "id": f"{course}-sample-projects-page",
+                    "text": document["text"],
+                    "title": document["title"],
+                    "url": document["url"],
+                }]
+            
     query_vector = embedding_model.encode(
         [question],
         normalize_embeddings=True,
     ).tolist()[0]
 
+    where = {"course": course}
+
+    exercise_match = re.search(
+        r"\bexercise\s*0?([1-8])\b",
+        question,
+        flags=re.IGNORECASE,
+    )
+
+    if exercise_match:
+        exercise_number = int(exercise_match.group(1))
+        exercise_url = (
+            "https://mazarbaloch.github.io/dev-ai-course/"
+            f"docs/exercises/exercise-{exercise_number:02d}"
+        )
+
+        where = {
+            "$and": [
+                {"course": course},
+                {"url": exercise_url},
+            ],
+        }
+
+    matching = collection.get(
+        where=where,
+        include=[],
+    )
+
+    if not matching["ids"]:
+        return []
+
     result = collection.query(
         query_embeddings=[query_vector],
-        n_results=min(top_k, collection.count()),
-        where={"course": course},
+        n_results=min(top_k, len(matching["ids"])),
+        where=where,
         include=["documents", "metadatas", "distances"],
     )
 

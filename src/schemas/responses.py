@@ -23,7 +23,9 @@ class CourseResponse(BaseModel):
         description="The answer to the student's question.",
     )
 
-    category: Literal["course", "project", "other"] = Field(description="The category of the student's question.")
+    category: Literal["course","project", "other"] = Field(description="course: course topics, exercises and teaching sample projects; "
+            "project: the student's final group project; "
+            "other for unrelated or unclear topics.")
 
     needs_human: bool = Field(description="Whether the question should be handled by a human.")
     evidence_status: Literal["supported", "insufficient"]

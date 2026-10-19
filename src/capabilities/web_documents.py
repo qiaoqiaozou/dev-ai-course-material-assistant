@@ -2,6 +2,7 @@ from urllib.request import urlopen
 
 from bs4 import BeautifulSoup
 from urllib.parse import urldefrag, urljoin, urlsplit
+from xml.etree import ElementTree
 
 
 def load_web_document(url, course="DEV-AI"):
@@ -25,18 +26,12 @@ def load_web_document(url, course="DEV-AI"):
     for element in content.select("script, style, .hash-link"):
         element.decompose()
 
-    paragraphs = [
-        element.get_text(" ", strip=True).replace("\u200b", "")
-        for element in content.select(
-            "h1, h2, h3, h4, p, li, pre, tr"
-        )
-    ]
+    
 
-    text = "\n\n".join(
-        paragraph
-        for paragraph in paragraphs
-        if paragraph
-    )
+    text = content.get_text(
+        separator="\n\n",
+        strip=True,
+    ).replace("\u200b", "")
 
     if not text:
         raise ValueError("The page does not contain readable text.")
@@ -48,52 +43,43 @@ def load_web_document(url, course="DEV-AI"):
         "text": text,
     }
 
-def find_chapter_urls(home_url):
-    with urlopen(home_url, timeout=30) as response:
-        html = response.read().decode("utf-8")
-
-    soup = BeautifulSoup(html, "html.parser")
-
+def find_course_urls(home_url):
     home = urlsplit(home_url)
-    chapter_path = home.path.rstrip("/") + "/docs/chapters/"
+    docs_path = home.path.rstrip("/") + "/docs/"
+    sitemap_url = urljoin(home_url.rstrip("/") + "/", "sitemap.xml")
 
-    chapters = {}
-    chapter_numbers = [
-        "01", "02", "03", "04",
-        "05", "06", "07", "08",
-    ]
+    with urlopen(sitemap_url, timeout=30) as response:
+        sitemap = ElementTree.fromstring(response.read())
 
-    for link in soup.find_all("a", href=True):
-        url = urljoin(home_url, link["href"])
-        url, _ = urldefrag(url)
+    namespace = {
+        "sitemap": "http://www.sitemaps.org/schemas/sitemap/0.9",
+    }
 
+    urls = set()
+
+    for location in sitemap.findall("sitemap:url/sitemap:loc", namespace):
+        url = (location.text or "").strip()
         parsed = urlsplit(url)
 
         if parsed.scheme != home.scheme or parsed.netloc != home.netloc:
             continue
 
-        if not parsed.path.startswith(chapter_path):
+        if not parsed.path.startswith(docs_path):
             continue
 
-        slug = parsed.path[len(chapter_path):].strip("/")
-        number = slug.split("-")[0]
+        url = parsed._replace(query="", fragment="").geturl()
+        urls.add(url.rstrip("/"))
 
-        if number in chapter_numbers and "/" not in slug:
-            chapters[number] = url
+    if not urls:
+        raise ValueError("Could not find course document links.")
 
-    if len(chapters) != 8:
-        raise ValueError("Could not find all eight chapter links.")
-
-    return [
-        chapters[number]
-        for number in chapter_numbers
-    ]
+    return sorted(urls)
 
 
 def load_course_documents(home_url, course="DEV-AI"):
     documents = []
 
-    for url in find_chapter_urls(home_url):
+    for url in find_course_urls(home_url):
         document = load_web_document(url, course=course)
         documents.append(document)
 
