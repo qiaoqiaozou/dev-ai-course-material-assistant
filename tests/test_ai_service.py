@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import pytest
 
 from src.config import config
@@ -38,14 +38,31 @@ def test_empty_input_validation():
 def test_successful_response_generation():
     """Verify that valid input invokes model client and returns the generated string response."""
     mock_client = MagicMock()
+    mock_client.model_name = "test-model"
     mock_client.generate.return_value = (
         '{"answer": "Hello! I am an AI assistant.", '
         '"category": "other", '
-        '"needs_human": false}'
+        '"needs_human": false,'
+        '"evidence_status": "supported", '
+        '"citations": [1]}'
     )
+
+    evidence = [
+        {
+            "id": "test-chunk-1",
+            "text": "The workshop uses an energy dataset.",
+            "title": "Test course guide",
+            "url": "https://example.com/course",
+        }
+    ]
+
     service = AIService(model_client=mock_client)
 
-    result = generate_response("Hello, AI", service=service)
+    with patch(
+        "src.services.ai_service.retrieve",
+        return_value=evidence,
+    ):
+        result = generate_response("Hello, AI", service=service)
 
     assert result.content == "Hello! I am an AI assistant."
     assert result.success is True
@@ -78,3 +95,76 @@ def test_model_not_found_error_handling():
     assert response.success is False
     assert "configured AI model is unavailable" in response.content
     assert "llama3.2 not found" in response.error_message
+
+def test_supported_response_requires_citations():
+    """Verify that a supported answer without citations is rejected."""
+    mock_client = MagicMock()
+    mock_client.model_name = "test-model"
+    mock_client.generate.return_value = (
+        '{"answer": "The workshop uses an energy dataset.", '
+        '"category": "course", '
+        '"needs_human": false, '
+        '"evidence_status": "supported", '
+        '"citations": []}'
+    )
+
+    evidence = [
+        {
+            "id": "test-chunk-1",
+            "text": "The workshop uses an energy dataset.",
+            "title": "Test course guide",
+            "url": "https://example.com/course",
+        }
+    ]
+
+    service = AIService(model_client=mock_client)
+
+    with patch(
+        "src.services.ai_service.retrieve",
+        return_value=evidence,
+    ):
+        result = generate_response(
+            "What dataset does the workshop use?",
+            service=service,
+        )
+
+    assert result.success is False
+    assert result.error_message == "Supported answer has no citations."
+    assert result.sources == []
+
+
+def test_insufficient_response_rejects_citations():
+    """Verify that an insufficient answer with citations is rejected."""
+    mock_client = MagicMock()
+    mock_client.model_name = "test-model"
+    mock_client.generate.return_value = (
+        '{"answer": "The supplied documents do not contain enough information.", '
+        '"category": "other", '
+        '"needs_human": true, '
+        '"evidence_status": "insufficient", '
+        '"citations": [1]}'
+    )
+
+    evidence = [
+        {
+            "id": "test-chunk-1",
+            "text": "The workshop uses an energy dataset.",
+            "title": "Test course guide",
+            "url": "https://example.com/course",
+        }
+    ]
+
+    service = AIService(model_client=mock_client)
+
+    with patch(
+        "src.services.ai_service.retrieve",
+        return_value=evidence,
+    ):
+        result = generate_response(
+            "What is today's cafeteria menu?",
+            service=service,
+        )
+
+    assert result.success is False
+    assert result.error_message == "Insufficient answer includes citations."
+    assert result.sources == []

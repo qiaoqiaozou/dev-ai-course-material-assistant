@@ -32,22 +32,44 @@ def history_for_service(history):
 
     return converted
 
+def format_sources(result):
+    if result.evidence_status == "insufficient":
+        return "No cited source: the retrieved passages did not contain enough evidence."
+
+    blocks = []
+
+    for number, source in zip(result.citations, result.sources):
+        blocks.append(
+            f"**[{number}] [{source['title']}]({source['url']})**\n\n"
+            f"{source['text']}"
+        )
+
+    return "\n\n---\n\n".join(blocks)
+
 
 def chat_reply(message, history, model_id):
     response = generate_response(
         message,
-        history_for_service(history),
+        history=history_for_service(history),
         model_id = model_id,
     )
 
     if not response.success:
-        return response.content, {"status": "error"}
+        return response.content, {"status": "error"},"No sources."
 
-    return response.content, {
+    metadata = {
+        "status": "ok",
+        "model": response.model,
         "category": response.category,
         "needs_human": response.needs_human,
+        "evidence_status": response.evidence_status,
+        "citations": response.citations,
+        "runtime": response.runtime,
+        "endpoint": response.endpoint,
+        "elapsed_s": response.elapsed_s,
     }
 
+    return response.content, metadata,format_sources(response)
 
 
 
@@ -80,11 +102,12 @@ def build_ui() -> gr.Blocks:
         )
 
         metadata = gr.JSON(label="Validated response")
+        sources = gr.Markdown(label="Sources")
         
         gr.ChatInterface(
             fn=chat_reply,
             additional_inputs=[model_selector],
-            additional_outputs=[metadata],
+            additional_outputs=[metadata, sources],
         )
 
     return demo
