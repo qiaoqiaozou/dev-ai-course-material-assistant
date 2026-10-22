@@ -17,6 +17,7 @@ Your evaluation dataset in [`test_cases.json`](test_cases.json) should cover thr
 ## Evaluation Process
 
 1. **Define Test Cases:** Populate `test_cases.json` with realistic inputs and expected behaviors tailored to your user problem.
-2. **Execute System:** Run each test case through your application interface.
+2. **Execute System:** Run model evaluation cases through the application.
+   Run application-control tests with `python -m pytest`.
 3. **Log & Review:** Record `actual_result` and assign a `status` (`pass`, `fail`, `partial`).
 4. **Summarize Results:** Synthesize findings in [`evaluation_results.md`](evaluation_results.md).
