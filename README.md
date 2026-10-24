@@ -8,7 +8,8 @@ A RAG-based question-answering application that helps students find and understa
 - Xiaomeng Du (xiaomeng23000@student.hamk.fi)
 - Neupane Nitish Raj (nitishraj.neupane@student.hamk.fi)
   
-Group presentation video link:
+Group presentation video link: 
+https://drive.google.com/file/d/1EsgYalRYRF6bzuqO1tF081fHJkJt5pxI/view?usp=sharing
 
 ## Problem
 
